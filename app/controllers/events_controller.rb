@@ -1,17 +1,17 @@
 class EventsController < ApplicationController
-  before_action :set_event, only: %i[ show update destroy ]
+  before_action :set_event, only: %i[ show ]
 
   # GET /events
   def index
-    events = if params[:public] == "true" 
+    events = if event_params[:public] == "true"
                     Event.public_events
-                   elsif params[:public] == "false"
+                   elsif event_params[:public] == "false"
                     Event.private_events
                    else 
                     Event.all
                    end
 
-    @events = events.all.map { |event| event.serialize }
+    @events = events.map { |event| event.serialize }
 
     render json: @events
   end
@@ -30,20 +30,6 @@ class EventsController < ApplicationController
     else
       render json: @event.errors, status: :bad_request
     end
-  end
-
-  # PATCH/PUT /events/1
-  def update
-    if @event.update(event_params)
-      render json: @event.serialize
-    else
-      render json: @event.errors, status: :unprocessable_entity
-    end
-  end
-
-  # DELETE /events/1
-  def destroy
-    @event.destroy!
   end
 
   private

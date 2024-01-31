@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 describe 'Events', type: :request do
-  xdescribe 'POST /events' do
+  describe 'POST /events' do
     let(:event_type) { 'PushEvent' }
 
     let(:event_params) do
@@ -68,7 +68,7 @@ describe 'Events', type: :request do
     end
   end
 
-  xdescribe 'GET /events/:id' do
+  describe 'GET /events/:id' do
     context 'when an event by given ID exists' do
       let(:event_params) do
         {
@@ -117,8 +117,8 @@ describe 'Events', type: :request do
     end
   end
 
-  xdescribe 'GET /events' do
-    xit 'returns status 200' do
+  describe 'GET /events' do
+    it 'returns status 200' do
       get '/events'
       expect(response.status).to eq(200)
     end
@@ -266,6 +266,95 @@ describe 'Events', type: :request do
     context 'when there are no events in the system' do
       it 'returns empty array JSON' do
         get "/repos/#{repo_id}/events"
+        expect(JSON.parse(response.body)).to eq([])
+      end
+    end
+  end
+
+  describe 'GET /users/:user_id/events' do
+    let(:user_id) { 20 }
+
+    it 'returns status 200' do
+      get "/users/#{user_id}/events"
+      expect(response.status).to eq(200)
+    end
+
+    context 'when there are events in the system' do
+      let(:event_params) do
+        [
+          {
+            event_type: 'WatchEvent',
+            public: false,
+            repo_id: 1,
+            actor_id: user_id
+          },
+          {
+            event_type: 'PushEvent',
+            public: true,
+            repo_id: 2,
+            actor_id: user_id
+          },
+          {
+            event_type: 'PushEvent',
+            public: true,
+            repo_id: 3,
+            actor_id: 999
+          } 
+        ]
+      end
+
+      let(:expected_persisted_events) do
+        event_params.each.with_index(1) do |params, index|
+          params['id'] = index
+        end.map(&:stringify_keys)
+      end
+
+      before do
+        event_params.each do |params|
+          post '/events', params: params
+          fail('Cannot create an event') unless response.status == 201
+        end
+      end
+
+      it 'returns events created by the given user ordered by ID' do
+        get "/users/#{user_id}/events"
+
+        expected = [
+          expected_persisted_events[0],
+          expected_persisted_events[1]
+        ]
+
+        expect(JSON.parse(response.body)).to eq(expected)
+      end
+
+      context 'when query parameter "public" is provided' do
+        context 'and it is FALSE' do
+          it 'returns only private events' do
+            get '/events', params: {public: false}
+            expected = [expected_persisted_events[0]]
+            
+            expect(JSON.parse(response.body)).to eq(expected)
+          end
+        end
+
+        context 'and it is TRUE' do
+          it 'returns only public events' do
+            get '/events', params: {public: true}
+            
+            expected = [
+              expected_persisted_events[1],
+              expected_persisted_events[2]
+            ]
+
+            expect(JSON.parse(response.body)).to eq(expected)
+          end
+        end
+      end
+    end
+
+    context 'when there are no events in the system' do
+      it 'returns empty array JSON' do
+        get "/users/#{user_id}/events"
         expect(JSON.parse(response.body)).to eq([])
       end
     end
